@@ -1,0 +1,45 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: abac-auth-service
+
+  datasource:
+    url: jdbc:oracle:thin:@//localhost:1521/xepdb1
+    username: enterprise_app
+    password: enterprise_app
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  audit:
+    enabled: true
+
+jwt:
+  expiration: 3600000  # 1 hour
+
+logging:
+  level:
+    root: INFO
+    com.nazndev.abacauthservice: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  security:
+    enabled: false
