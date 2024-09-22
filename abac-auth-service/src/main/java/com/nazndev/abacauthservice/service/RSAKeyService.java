@@ -70,13 +70,13 @@ public class RSAKeyService {
 
     public PrivateKey getPrivateKey(String base64PrivateKey) throws Exception {
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        byte[] decodedKey = Base64.getDecoder().decode(base64PrivateKey);
+        byte[] decodedKey = Base64.getUrlDecoder().decode(base64PrivateKey); // Use URL Decoder
         return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decodedKey));
     }
 
     public PublicKey getPublicKey(String base64PublicKey) throws Exception {
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        byte[] decodedKey = Base64.getDecoder().decode(base64PublicKey);
+        byte[] decodedKey = Base64.getUrlDecoder().decode(base64PublicKey); // Use URL Decoder
         return keyFactory.generatePublic(new X509EncodedKeySpec(decodedKey));
     }
 }

@@ -30,7 +30,7 @@ public class JWKSController {
                                     "kid", rsaKey.getKeyId(),
                                     "use", "sig",
                                     "alg", "RS256",
-                                    "n", Base64.getUrlEncoder().encodeToString(Base64.getDecoder().decode(rsaKey.getPublicKey())),
+                                    "n", rsaKey.getPublicKey(), // The public key is already URL-safe Base64 encoded
                                     "e", "AQAB"
                             )
                     )
@@ -39,4 +39,5 @@ public class JWKSController {
             throw new IllegalStateException("No active RSA key found");
         }
     }
+
 }

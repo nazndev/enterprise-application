@@ -9,27 +9,34 @@ import java.util.Objects;
 import java.util.Set;
 
 @Entity
-@Table(name = "roles")
+@Table(name = "api_permissions")
 @Data
 @NoArgsConstructor
-public class Role {
+public class ApiPermission {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String name;
+    private String apiPath; // e.g., "/auth/token", "/auth/*"
 
-    @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
-    private Set<User> users = new HashSet<>();
+    @Column(nullable = false)
+    private String microserviceName;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "api_role_permissions",
+            joinColumns = @JoinColumn(name = "api_permission_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Role role = (Role) o;
-        return Objects.equals(id, role.id);
+        ApiPermission that = (ApiPermission) o;
+        return Objects.equals(id, that.id);
     }
 
     @Override

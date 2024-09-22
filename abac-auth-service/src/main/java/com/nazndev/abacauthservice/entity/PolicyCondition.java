@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.persistence.*;
+import java.util.Objects;
 
 @Data
 @NoArgsConstructor
@@ -14,7 +15,7 @@ public class PolicyCondition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_id")
     private Policy policy;
 
@@ -26,4 +27,17 @@ public class PolicyCondition {
 
     @Column(nullable = false)
     private String operator; // e.g., EQUALS, GREATER_THAN, etc.
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PolicyCondition that = (PolicyCondition) o;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

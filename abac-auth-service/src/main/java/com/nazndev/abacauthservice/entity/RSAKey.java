@@ -17,7 +17,7 @@ public class RSAKey {
 
     @Lob
     @Column(name = "private_key", nullable = false)
-    private String privateKey;
+    private String privateKey; // Ensure this is encrypted before storing
 
     @Lob
     @Column(name = "public_key", nullable = false)
@@ -42,3 +42,4 @@ public class RSAKey {
         EXPIRED
     }
 }
+

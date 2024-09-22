@@ -4,11 +4,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Objects;
 
-@Data
-@NoArgsConstructor
 @Entity
 @Table(name = "policies")
+@Data
+@NoArgsConstructor
 public class Policy {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "policy_seq")
@@ -22,5 +25,26 @@ public class Policy {
     private String action;
 
     @Column(name = "policy_condition")
-    private String policyCondition; // JSON or DSL for complex conditions
+    private String policyCondition; // Complex conditions can be defined here
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "policy_api_permissions",
+            joinColumns = @JoinColumn(name = "policy_id"),
+            inverseJoinColumns = @JoinColumn(name = "api_permission_id")
+    )
+    private Set<ApiPermission> apiPermissions = new HashSet<>();
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Policy policy = (Policy) o;
+        return Objects.equals(id, policy.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

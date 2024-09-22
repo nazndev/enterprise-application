@@ -9,10 +9,12 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -24,15 +26,17 @@ public class StartupService {
 
     private final RSAKeyService rsaKeyService;
     private final RoleRepository roleRepository;
+    private final RolePolicyRepository rolePolicyRepository;
     private final UserRepository userRepository;
     private final PolicyRepository policyRepository;
     private final ResourceRepository resourceRepository;
     private final ActionRepository actionRepository;
     private final PolicyConditionRepository policyConditionRepository;
     private final PolicyActionResourceRepository policyActionResourceRepository;
-    private final RolePolicyRepository rolePolicyRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final ApiPermissionRepository apiPermissionRepository;
+    private final PolicyApiPermissionRepository policyApiPermissionRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final AuditLogRepository auditLogRepository;
 
     @EventListener(ApplicationReadyEvent.class)
     public void initializeData() {
@@ -40,8 +44,12 @@ public class StartupService {
         createRolesIfNotExists();
         createActionsIfNotExists();
         createResourcesIfNotExists();
+        createApiPermissionsIfNotExists();
         createSuperUserIfNotExists();
+        createGuestUserIfNotExists();
         createDefaultPolicies();
+        createPolicyApiPermissionsIfNotExists();
+        createRoleApiPermissionsIfNotExists();
     }
 
     private void createRSAKeyIfNotExists() {
@@ -92,13 +100,45 @@ public class StartupService {
 
     private void createResourcesIfNotExists() {
         if (resourceRepository.findAll().isEmpty()) {
-            Resource apiResource = new Resource();
-            apiResource.setName("default_resource");
-            apiResource.setType("API");
-            resourceRepository.save(apiResource);
-            logAudit("RESOURCE", "Created default_resource.");
+            Resource authResource = new Resource();
+            authResource.setName("AUTH_SERVICE");
+            authResource.setType("API");
+            resourceRepository.save(authResource);
+            logAudit("RESOURCE", "Created AUTH_SERVICE resource.");
 
             logger.info("Default resources created.");
+        }
+    }
+
+    private void createApiPermissionsIfNotExists() {
+        if (apiPermissionRepository.findAll().isEmpty()) {
+            // Create a single permission for all /auth/** endpoints
+            ApiPermission authPermission = new ApiPermission();
+            authPermission.setApiPath("/auth/**");
+            authPermission.setMicroserviceName("AuthService");
+            apiPermissionRepository.save(authPermission);
+            logAudit("API_PERMISSION", "Created permission for /auth/**.");
+
+            // Add permissions for the other controllers
+            ApiPermission resourcePermission = new ApiPermission();
+            resourcePermission.setApiPath("/resource/**");
+            resourcePermission.setMicroserviceName("AuthService");
+            apiPermissionRepository.save(resourcePermission);
+            logAudit("API_PERMISSION", "Created permission for /resource/**.");
+
+            ApiPermission rolePermission = new ApiPermission();
+            rolePermission.setApiPath("/roles/**");
+            rolePermission.setMicroserviceName("AuthService");
+            apiPermissionRepository.save(rolePermission);
+            logAudit("API_PERMISSION", "Created permission for /roles/**.");
+
+            ApiPermission userPermission = new ApiPermission();
+            userPermission.setApiPath("/users/**");
+            userPermission.setMicroserviceName("AuthService");
+            apiPermissionRepository.save(userPermission);
+            logAudit("API_PERMISSION", "Created permission for /users/**.");
+
+            logger.info("Default API permissions created.");
         }
     }
 
@@ -108,14 +148,12 @@ public class StartupService {
             superuser.setUsername("nazim");
             superuser.setPassword(passwordEncoder.encode("nazim"));
 
-            Set<String> roles = new HashSet<>();
-            roles.add("ROLE_ADMIN");
+            Set<Role> roles = new HashSet<>();
+            roles.add(roleRepository.findByName("ROLE_ADMIN").orElseThrow());
             superuser.setRoles(roles);
 
-            // Set attributes
             Map<String, String> attributes = Map.of(
-                    "department", "RnD",
-                    "level", "Senior"
+                    "permissions", "READ,WRITE"
             );
             superuser.setAttributes(attributes);
 
@@ -126,45 +164,74 @@ public class StartupService {
         }
     }
 
+    private void createGuestUserIfNotExists() {
+        if (userRepository.findByUsername("guest").isEmpty()) {
+            User guestUser = new User();
+            guestUser.setUsername("guest");
+            guestUser.setPassword(passwordEncoder.encode("guest"));
+
+            Set<Role> roles = new HashSet<>();
+            roles.add(roleRepository.findByName("ROLE_USER").orElseThrow());
+            guestUser.setRoles(roles);
+
+            Map<String, String> attributes = Map.of(
+                    "permissions", "READ"
+            );
+            guestUser.setAttributes(attributes);
+
+            userRepository.save(guestUser);
+            logAudit("USER", "Created guest user with ROLE_USER.");
+
+            logger.info("Guest user created.");
+        }
+    }
 
     private void createDefaultPolicies() {
         if (policyRepository.findAll().isEmpty()) {
-            // Create resources
-            Resource resource = resourceRepository.findByName("default_resource")
+            Resource resource = resourceRepository.findByName("AUTH_SERVICE")
                     .orElseThrow(() -> new IllegalStateException("Resource not found"));
 
-            // Create actions
             Action readAction = actionRepository.findByName("READ")
                     .orElseThrow(() -> new IllegalStateException("Action not found"));
             Action writeAction = actionRepository.findByName("WRITE")
                     .orElseThrow(() -> new IllegalStateException("Action not found"));
 
-            // Create policies
-            Policy readPolicy = new Policy();
-            readPolicy.setResourceName(resource.getName());
-            readPolicy.setAction(readAction.getName());
-            policyRepository.save(readPolicy);
-            logAudit("POLICY", "Created READ policy for default_resource.");
+            // Policies for ADMIN
+            Policy readPolicyAdmin = new Policy();
+            readPolicyAdmin.setResourceName(resource.getName());
+            readPolicyAdmin.setAction(readAction.getName());
+            policyRepository.save(readPolicyAdmin);
+            logAudit("POLICY", "Created READ policy for AUTH_SERVICE.");
 
-            Policy writePolicy = new Policy();
-            writePolicy.setResourceName(resource.getName());
-            writePolicy.setAction(writeAction.getName());
-            policyRepository.save(writePolicy);
-            logAudit("POLICY", "Created WRITE policy for default_resource.");
+            Policy writePolicyAdmin = new Policy();
+            writePolicyAdmin.setResourceName(resource.getName());
+            writePolicyAdmin.setAction(writeAction.getName());
+            policyRepository.save(writePolicyAdmin);
+            logAudit("POLICY", "Created WRITE policy for AUTH_SERVICE.");
 
-            // Link policy, action, and resource in PolicyActionResource
-            createPolicyActionResource(readPolicy, readAction, resource);
-            createPolicyActionResource(writePolicy, writeAction, resource);
+            // Policies for USER
+            Policy readPolicyUser = new Policy();
+            readPolicyUser.setResourceName(resource.getName());
+            readPolicyUser.setAction(readAction.getName());
+            policyRepository.save(readPolicyUser);
+            logAudit("POLICY", "Created READ policy for AUTH_SERVICE for USER.");
 
-            // Create policy conditions and update the policyCondition field
-            createAndLinkPolicyCondition(readPolicy);
-            createAndLinkPolicyCondition(writePolicy);
+            createPolicyActionResource(readPolicyAdmin, readAction, resource);
+            createPolicyActionResource(writePolicyAdmin, writeAction, resource);
+            createPolicyActionResource(readPolicyUser, readAction, resource);
 
-            // Link roles to policies
+            createAndLinkPolicyCondition(readPolicyAdmin, "role", "ROLE_ADMIN", "EQUALS");
+            createAndLinkPolicyCondition(writePolicyAdmin, "role", "ROLE_ADMIN", "EQUALS");
+            createAndLinkPolicyCondition(readPolicyUser, "role", "ROLE_USER", "EQUALS");
+
             Role adminRole = roleRepository.findByName("ROLE_ADMIN")
                     .orElseThrow(() -> new IllegalStateException("Role not found"));
-            linkRoleToPolicy(adminRole, readPolicy);
-            linkRoleToPolicy(adminRole, writePolicy);
+            linkRoleToPolicy(adminRole, readPolicyAdmin);
+            linkRoleToPolicy(adminRole, writePolicyAdmin);
+
+            Role userRole = roleRepository.findByName("ROLE_USER")
+                    .orElseThrow(() -> new IllegalStateException("Role not found"));
+            linkRoleToPolicy(userRole, readPolicyUser);
 
             logger.info("Default policies, conditions, and role-policy associations created.");
         }
@@ -179,21 +246,19 @@ public class StartupService {
         logAudit("POLICY_ACTION_RESOURCE", "Linked " + policy.getAction() + " policy to " + action.getName() + " action on " + resource.getName() + " resource.");
     }
 
-
-    private void createAndLinkPolicyCondition(Policy policy) {
+    private void createAndLinkPolicyCondition(Policy policy, String attributeName, String expectedValue, String operator) {
         PolicyCondition condition = new PolicyCondition();
         condition.setPolicy(policy);
-        condition.setAttributeName("role");
-        condition.setExpectedValue("ROLE_ADMIN");
-        condition.setOperator("EQUALS");
+        condition.setAttributeName(attributeName);
+        condition.setExpectedValue(expectedValue);
+        condition.setOperator(operator);
         policyConditionRepository.save(condition);
 
-        // Serialize condition to policyCondition field (simple format example)
-        String policyConditionString = "role" + " " + "EQUALS" + " " + "ROLE_ADMIN";
+        String policyConditionString = attributeName + " " + operator + " " + expectedValue;
         policy.setPolicyCondition(policyConditionString);
         policyRepository.save(policy);
 
-        logAudit("POLICY_CONDITION", "Created condition for policy: " + policy.getAction() + " on resource: " + policy.getResourceName());
+        logAudit("POLICY_CONDITION", "Created condition for policy: " + policy.getAction() + " on resource: " + policy.getResourceName() + " with condition: " + policyConditionString);
     }
 
     private void linkRoleToPolicy(Role role, Policy policy) {
@@ -203,6 +268,43 @@ public class StartupService {
         rolePolicyRepository.save(rolePolicy);
         logAudit("ROLE_POLICY", "Linked " + role.getName() + " to " + policy.getAction() + " policy.");
     }
+
+    private void createPolicyApiPermissionsIfNotExists() {
+        List<ApiPermission> apiPermissions = apiPermissionRepository.findAll();
+
+        if (policyApiPermissionRepository.findAll().isEmpty()) {
+            for (ApiPermission apiPermission : apiPermissions) {
+                List<Policy> readPolicies = policyRepository.findByResourceNameAndAction("AUTH_SERVICE", "READ");
+
+                for (Policy readPolicy : readPolicies) {
+                    PolicyApiPermission policyApiPermission = new PolicyApiPermission();
+                    policyApiPermission.setPolicy(readPolicy);
+                    policyApiPermission.setApiPermission(apiPermission);
+                    policyApiPermissionRepository.save(policyApiPermission);
+
+                    logAudit("POLICY_API_PERMISSION", "Linked READ policy to API permission: " + apiPermission.getApiPath());
+                }
+            }
+        }
+    }
+
+    @Transactional
+    private void createRoleApiPermissionsIfNotExists() {
+        List<Role> roles = roleRepository.findAll();
+        List<ApiPermission> permissions = apiPermissionRepository.findAllWithRoles(); // Ensure roles are eagerly fetched
+
+        for (Role role : roles) {
+            for (ApiPermission permission : permissions) {
+                if (!permission.getRoles().contains(role)) {
+                    permission.getRoles().add(role);
+                }
+            }
+        }
+
+        apiPermissionRepository.saveAll(permissions);
+        logger.info("Role-API permissions associations created.");
+    }
+
 
     private void logAudit(String resource, String details) {
         logAudit("system", "CREATE", resource, details, auditLogRepository);

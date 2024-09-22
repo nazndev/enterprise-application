@@ -25,13 +25,17 @@ spring:
   audit:
     enabled: true
 
+
 jwt:
-  expiration: 3600000  # 1 hour
+  access-token-expiration: 3600000  # 1 hour in milliseconds
+  refresh-token-expiration: 2592000000 # 30 days in milliseconds
 
 logging:
   level:
     root: INFO
     com.nazndev.abacauthservice: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
 
 management:
   endpoints:
