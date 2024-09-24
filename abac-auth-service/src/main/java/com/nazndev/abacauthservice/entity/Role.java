@@ -3,6 +3,7 @@ package com.nazndev.abacauthservice.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -21,8 +22,8 @@ public class Role {
     private String name;
 
     @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    @ToString.Exclude  // Exclude to prevent circular reference
     private Set<User> users = new HashSet<>();
-
 
     @Override
     public boolean equals(Object o) {
@@ -37,3 +38,4 @@ public class Role {
         return Objects.hash(id);
     }
 }
+

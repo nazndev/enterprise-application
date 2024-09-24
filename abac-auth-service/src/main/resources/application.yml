@@ -34,8 +34,13 @@ logging:
   level:
     root: INFO
     com.nazndev.abacauthservice: DEBUG
+    com.nazndev.abacauthservice.config: DEBUG
     org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: TRACE
+    org.springframework.security.web.access.ExceptionTranslationFilter: TRACE
+    org.springframework.security.web.access.intercept.FilterSecurityInterceptor: TRACE
+
+
 
 management:
   endpoints:

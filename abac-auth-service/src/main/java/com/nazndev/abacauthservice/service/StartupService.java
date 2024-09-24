@@ -69,14 +69,14 @@ public class StartupService {
     private void createRolesIfNotExists() {
         if (roleRepository.findAll().isEmpty()) {
             Role adminRole = new Role();
-            adminRole.setName("ROLE_ADMIN");
+            adminRole.setName("ADMIN");
             roleRepository.save(adminRole);
-            logAudit("ROLE", "Created ROLE_ADMIN.");
+            logAudit("ROLE", "Created ADMIN.");
 
             Role userRole = new Role();
-            userRole.setName("ROLE_USER");
+            userRole.setName("USER");
             roleRepository.save(userRole);
-            logAudit("ROLE", "Created ROLE_USER.");
+            logAudit("ROLE", "Created USER.");
 
             logger.info("Default roles created.");
         }
@@ -149,7 +149,7 @@ public class StartupService {
             superuser.setPassword(passwordEncoder.encode("nazim"));
 
             Set<Role> roles = new HashSet<>();
-            roles.add(roleRepository.findByName("ROLE_ADMIN").orElseThrow());
+            roles.add(roleRepository.findByName("ADMIN").orElseThrow());
             superuser.setRoles(roles);
 
             Map<String, String> attributes = Map.of(
@@ -158,7 +158,7 @@ public class StartupService {
             superuser.setAttributes(attributes);
 
             userRepository.save(superuser);
-            logAudit("USER", "Created superuser nazim with ROLE_ADMIN and attributes.");
+            logAudit("USER", "Created superuser nazim with ADMIN and attributes.");
 
             logger.info("Superuser created.");
         }
@@ -171,7 +171,7 @@ public class StartupService {
             guestUser.setPassword(passwordEncoder.encode("guest"));
 
             Set<Role> roles = new HashSet<>();
-            roles.add(roleRepository.findByName("ROLE_USER").orElseThrow());
+            roles.add(roleRepository.findByName("USER").orElseThrow());
             guestUser.setRoles(roles);
 
             Map<String, String> attributes = Map.of(
@@ -180,7 +180,7 @@ public class StartupService {
             guestUser.setAttributes(attributes);
 
             userRepository.save(guestUser);
-            logAudit("USER", "Created guest user with ROLE_USER.");
+            logAudit("USER", "Created guest user with USER.");
 
             logger.info("Guest user created.");
         }
@@ -220,16 +220,16 @@ public class StartupService {
             createPolicyActionResource(writePolicyAdmin, writeAction, resource);
             createPolicyActionResource(readPolicyUser, readAction, resource);
 
-            createAndLinkPolicyCondition(readPolicyAdmin, "role", "ROLE_ADMIN", "EQUALS");
-            createAndLinkPolicyCondition(writePolicyAdmin, "role", "ROLE_ADMIN", "EQUALS");
-            createAndLinkPolicyCondition(readPolicyUser, "role", "ROLE_USER", "EQUALS");
+            createAndLinkPolicyCondition(readPolicyAdmin, "role", "ADMIN", "EQUALS");
+            createAndLinkPolicyCondition(writePolicyAdmin, "role", "ADMIN", "EQUALS");
+            createAndLinkPolicyCondition(readPolicyUser, "role", "USER", "EQUALS");
 
-            Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+            Role adminRole = roleRepository.findByName("ADMIN")
                     .orElseThrow(() -> new IllegalStateException("Role not found"));
             linkRoleToPolicy(adminRole, readPolicyAdmin);
             linkRoleToPolicy(adminRole, writePolicyAdmin);
 
-            Role userRole = roleRepository.findByName("ROLE_USER")
+            Role userRole = roleRepository.findByName("USER")
                     .orElseThrow(() -> new IllegalStateException("Role not found"));
             linkRoleToPolicy(userRole, readPolicyUser);
 
@@ -289,7 +289,7 @@ public class StartupService {
     }
 
     @Transactional
-    private void createRoleApiPermissionsIfNotExists() {
+    protected void createRoleApiPermissionsIfNotExists() {
         List<Role> roles = roleRepository.findAll();
         List<ApiPermission> permissions = apiPermissionRepository.findAllWithRoles(); // Ensure roles are eagerly fetched
 

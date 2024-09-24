@@ -3,7 +3,10 @@ package com.nazndev.abacauthservice.service;
 import com.nazndev.abacauthservice.entity.RSAKey;
 import com.nazndev.abacauthservice.entity.RSAKey.KeyStatus;
 import com.nazndev.abacauthservice.repository.RSAKeyRepository;
+import com.nazndev.abacauthservice.util.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.security.KeyFactory;
@@ -25,6 +28,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class RSAKeyService {
+
+    private static final Logger logger = LoggerFactory.getLogger(RSAKeyService.class);
 
     private final RSAKeyRepository rsaKeyRepository;
 
@@ -69,14 +74,25 @@ public class RSAKeyService {
     }
 
     public PrivateKey getPrivateKey(String base64PrivateKey) throws Exception {
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        byte[] decodedKey = Base64.getUrlDecoder().decode(base64PrivateKey); // Use URL Decoder
-        return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decodedKey));
+        try {
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            byte[] decodedKey = Base64.getUrlDecoder().decode(base64PrivateKey);
+            return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decodedKey));
+        } catch (Exception e) {
+            logger.error("Error retrieving PrivateKey: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve PrivateKey", e);
+        }
     }
 
     public PublicKey getPublicKey(String base64PublicKey) throws Exception {
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        byte[] decodedKey = Base64.getUrlDecoder().decode(base64PublicKey); // Use URL Decoder
-        return keyFactory.generatePublic(new X509EncodedKeySpec(decodedKey));
+        try {
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            byte[] decodedKey = Base64.getUrlDecoder().decode(base64PublicKey);
+            return keyFactory.generatePublic(new X509EncodedKeySpec(decodedKey));
+        } catch (Exception e) {
+            logger.error("Error retrieving PublicKey: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve PublicKey", e);
+        }
     }
+
 }
